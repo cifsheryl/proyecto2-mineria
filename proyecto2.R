@@ -8,6 +8,18 @@ install.packages("rpart.plot")
 library(rpart)
 library(rpart.plot)
 
+install.packages("arulesViz")
+library(arulesViz)
+
+
+install.packages("randomForest")
+install.packages("caret")
+library(randomForest)
+library(caret)
+
+install.packages("parallelly")
+
+
 
 
 file_path <- "C:\\Users\\Mario CIfuentes\\Downloads\\personas.xlsx"
@@ -109,4 +121,157 @@ print(predicciones)
 
 summary(modelo1)
 
-summary(nuevos_datos)  # Verifica si hay valores NA
+summary(nuevos_datos)
+
+
+  
+plot(rules, method = "scatterplot", measure = c("support", "confidence"), shading = "lift")
+
+plot(rules, method = "graph", engine = "igraph", control = list(type = "items"))
+
+plot(rules, method = "matrix", measure = c("lift", "confidence"))
+
+
+strong_rules <- subset(rules, lift > 1.5 & confidence > 0.8)
+inspect(strong_rules)
+
+
+#RANDOM FOREST
+# Preparar los datos
+data2[] <- lapply(data2, factor)  # Convertir variables en factores
+set.seed(123)  # Para reproducibilidad
+
+# Dividir en entrenamiento y prueba (70%-30%)
+trainIndex <- createDataPartition(data2$P06C01, p = 0.7, list = FALSE)
+train_data <- data2[trainIndex, ]
+test_data <- data2[-trainIndex, ]
+
+
+str(train_data$P04A05A)
+
+# Agregar un nuevo nivel "desconocido" al factor
+levels(train_data$P04A05A) <- c(levels(train_data$P04A05A), "desconocido")
+
+# Reemplazar los valores NA con "desconocido"
+train_data$P04A05A[is.na(train_data$P04A05A)] <- "desconocido"
+
+
+colSums(is.na(train_data))
+
+train_data <- na.omit(train_data)
+
+test_data$P03A02 <- as.factor(test_data$P03A02)
+test_data$areag <- as.factor(test_data$areag)
+test_data$P04A05A <- as.factor(test_data$P04A05A)
+
+
+levels(test_data$P03A02) <- levels(train_data$P03A02)
+levels(test_data$areag) <- levels(train_data$areag)
+levels(test_data$P04A05A) <- levels(train_data$P04A05A)
+
+## Predicción 1: ¿Recibe remesas?
+
+# Entrenar el modelo Random Forest
+rf_model1 <- randomForest(P06C01 ~ P03A02 + areag + P04A05A, data = train_data, ntree = 100, importance = TRUE)
+print(rf_model1)
+
+pred1 <- predict(rf_model1, test_data)
+
+summary(train_data$P04A05A)
+
+# Realizar predicciones
+pred1 <- predict(rf_model1, test_data)
+
+# Evaluar el modelo
+confusionMatrix(pred1, test_data$P06C01)
+
+# Importancia de las variables
+varImpPlot(rf_model1)
+
+##Prediccion 2:  Nivel Educativo Más Alto Aprobado
+
+# Entrenar el modelo Random Forest
+
+table(train_data$P04A05A)
+
+train_data$P04A05A <- droplevels(train_data$P04A05A)
+
+table(train_data$P04A05A)
+
+rf_model2 <- randomForest(P04A05A ~ P03A02 + areag + P06C01, data = train_data, ntree = 100, importance = TRUE)
+print(rf_model2)
+
+# Realizar predicciones
+pred2 <- predict(rf_model2, test_data)
+
+levels(test_data$P04A05A)
+levels(pred2)
+
+
+common_levels <- union(levels(test_data$P04A05A), levels(pred2))
+
+test_data$P04A05A <- factor(test_data$P04A05A, levels = common_levels)
+pred2 <- factor(pred2, levels = common_levels)
+
+
+
+levels(test_data$P04A05A) <- levels(pred2)
+
+
+# Evaluar el modelo
+confusionMatrix(pred2, test_data$P04A05A)
+
+# Importancia de las variables
+varImpPlot(rf_model2)
+
+
+----
+  str(train_data)
+str(new_data1)
+
+str(new_data1)
+
+
+new_data1$variable_name <- as.factor(new_data1$variable_name)
+nrow(new_data1)
+
+
+if (length(new_data1$variable_name) > 0) {
+  new_data1$variable_name <- as.factor(new_data1$variable_name)
+} else {
+  cat("La columna variable_name está vacía.")
+}
+
+new_data1$variable_name[is.na(new_data1$variable_name)] <- "Desconocido"  # O cualquier otro valor predeterminado
+new_data1$variable_name <- as.factor(new_data1$variable_name)
+
+if (!"variable_name" %in% colnames(new_data1)) {
+  new_data1$variable_name <- rep("Desconocido", nrow(new_data1))
+}
+
+sum(is.na(new_data1$variable_name))
+
+
+if(length(new_data1$variable_name) > 0) {
+  new_data1$variable_name[is.na(new_data1$variable_name)] <- "Desconocido"
+}
+
+new_data1$P03A02 <- factor(new_data1$P03A02, levels = levels(train_data$P03A02))
+new_data1$areag <- factor(new_data1$areag, levels = levels(train_data$areag))
+new_data1$P04A05A <- factor(new_data1$P04A05A, levels = levels(train_data$P04A05A))
+
+  
+new_data1 <- data.frame(P03A02 = factor("2", levels = c("1", "2")), 
+                          areag = factor("2", levels = c("1", "2")), 
+                          P04A05A = factor("2", levels = levels(data2$P04A05A)))
+predict(rf_model1, new_data1)
+
+
+# Visualizar la importancia de las variables
+importance(rf_model1)  
+varImpPlot(rf_model1) 
+
+
+# Visualizar uno de los árboles del modelo
+plot(rf_model1, main = "Árboles del Modelo de Bosque Aleatorio")
+
