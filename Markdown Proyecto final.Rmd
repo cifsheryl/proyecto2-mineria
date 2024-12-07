@@ -1,0 +1,199 @@
+---
+title: "Analisis Encuesta Nacional de empleo"
+author: "Sheryl CIfuentes"
+date: "2024-12-05"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+# Análisis de Encuesta Nacional de Empleo: Enfoque en Personas
+
+Este documento describe el análisis realizado sobre los datos de la Encuesta Nacional de Empleo, utilizando diversas técnicas estadísticas y de aprendizaje automático, incluyendo análisis de reglas de asociación, árboles de decisión y bosque aleatorio (Random Forest).
+
+# Introducción
+Este proyecto analiza datos utilizando arboles de decision, bosques aleatorios y redes neuronales(phyton).
+
+## Objetivos
+- Analizar patrones de datos.
+- Proponer soluciones basadas en hallazgos.
+
+
+## Paquetes necesarios
+
+A continuación se instalan y cargan los paquetes necesarios para realizar el análisis:
+
+
+# Instalar e importar paquetes
+```r
+install.packages("arules")
+library(arules)
+
+install.packages("readxl")
+library(readxl)
+
+install.packages("rpart")
+install.packages("rpart.plot")
+library(rpart)
+library(rpart.plot)
+
+install.packages("arulesViz")
+library(arulesViz)
+
+install.packages("randomForest")
+install.packages("caret")
+library(randomForest)
+library(caret)
+
+install.packages("parallelly")
+```
+
+# Cargar los datos desde un archivo Excel
+```r
+file_path <- "C:\\Users\\Mario CIfuentes\\Downloads\\personas.xlsx"
+data <- read_excel(file_path)
+View(data)
+```
+
+# Seleccionar las variables de interés
+```r
+data2 <- data[, c("P03A02", "areag", "P04A05A", "P06C01")]
+View(data2)
+```
+
+# Convertir las variables categóricas en factores
+```r
+data2[] <- lapply(data2, factor)
+str(data2)
+```
+
+# Convertir el conjunto de datos en transacciones
+```r
+transactions <- as(data2, "transactions")
+summary(transactions)
+```
+
+# Generar reglas de asociación
+```r
+rules <- apriori(transactions, parameter = list(supp = 0.1, conf = 0.8))
+inspect(head(rules))
+```
+
+# Visualizar reglas con diferentes métodos
+```r
+plot(rules, method = "scatterplot", measure = c("support", "confidence"), shading = "lift")
+plot(rules, method = "graph", engine = "igraph", control = list(type = "items"))
+plot(rules, method = "matrix", measure = c("lift", "confidence"))
+```
+
+# Filtrar reglas fuertes con lift > 1.5 y confidence > 0.8
+```r
+strong_rules <- subset(rules, lift > 1.5 & confidence > 0.8)
+inspect(strong_rules)
+```
+
+#ARBOLES DE DECISION
+# Árbol de decisión para predecir el nivel educativo según género y área geográfica
+```r
+modelo1 <- rpart(P04A05A ~ P03A02 + areag, data = data, method = "class")
+rpart.plot(modelo1, type = 3, extra = 102, under = TRUE, fallen.leaves = TRUE, box.palette = "green")
+```
+
+# Evaluar el modelo con una matriz de confusión
+```r
+tabla_confusion <- table(Predicción = predict(modelo1, data, type = "class"), Real = data$P04A05A)
+print(tabla_confusion)
+```
+
+# Calcular la precisión
+```r
+precision <- sum(diag(tabla_confusion)) / sum(tabla_confusion)
+print(paste("Precisión del modelo:", round(precision, 2)))
+
+```
+
+# Realizar predicciones con el modelo
+```r
+nuevos_datos <- data.frame(P03A02 = 1, areag = 1)  # Ejemplo de datos de entrada
+predicciones <- predict(modelo1, nuevos_datos, type = "class")
+print(predicciones)
+```
+
+#RANDOM FOREST
+
+# Convertir las variables en factores
+```r
+data2[] <- lapply(data2, factor)
+set.seed(123)  # Para reproducibilidad
+```
+# Dividir en entrenamiento y prueba (70%-30%)
+```r
+trainIndex <- createDataPartition(data2$P06C01, p = 0.7, list = FALSE)
+train_data <- data2[trainIndex, ]
+test_data <- data2[-trainIndex, ]
+```
+
+# Entrenar el modelo Random Forest para predecir si se reciben remesas
+```r
+rf_model1 <- randomForest(P06C01 ~ P03A02 + areag + P04A05A, data = train_data, ntree = 100, importance = TRUE)
+print(rf_model1)
+```
+
+# Realizar predicciones
+```r
+pred1 <- predict(rf_model1, test_data)
+```
+
+# Evaluar el modelo
+```r
+confusionMatrix(pred1, test_data$P06C01)
+```
+
+# Importancia de las variables
+```r
+varImpPlot(rf_model1)
+```
+
+# Entrenar el modelo Random Forest para predecir el nivel educativo
+```r
+rf_model2 <- randomForest(P04A05A ~ P03A02 + areag + P06C01, data = train_data, ntree = 100, importance = TRUE)
+print(rf_model2)
+```
+
+# Realizar predicciones
+```r
+pred2 <- predict(rf_model2, test_data)
+```
+
+# Evaluar el modelo
+```r
+confusionMatrix(pred2, test_data$P04A05A)
+```
+
+# Importancia de las variables
+```r
+varImpPlot(rf_model2)
+```
+
+# Predicciones para nuevos datos
+```r
+new_data1 <- data.frame(P03A02 = factor("2", levels = c("1", "2")), 
+                        areag = factor("2", levels = c("1", "2")), 
+                        P04A05A = factor("2", levels = levels(data2$P04A05A)))
+
+predict(rf_model1, new_data1)
+```
+
+# Visualizar la importancia de las variables
+```r
+importance(rf_model1)  
+varImpPlot(rf_model1)
+```
+
+
+
+
